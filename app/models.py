@@ -13,7 +13,8 @@ class GenerateParams(BaseModel):
     model: Optional[str] = None
     
 class SafetyConfig(BaseModel):
-    allow_ature_implicit: bool = False
+    # Correct typo: allow_ature_implicit -> allow_mature_implicit
+    allow_mature_implicit: bool = Field(False, alias="allow_ature_implicit")
 
 class Metadata(BaseModel):
     project_id: Optional[str] = None
@@ -24,7 +25,11 @@ class GenerateRequest(BaseModel):
     negative_prompt: Optional[str] = None
     params: GenerateParams = GenerateParams()
     safety: SafetyConfig = SafetyConfig()
-    metada: Metadata =  Metadata()
+    # Correct typo: metada -> metadata (keep alias for backward compatibility)
+    metadata: Metadata = Field(default_factory=Metadata, alias="metada")
+
+    class Config:
+        populate_by_name = True
     
 class JobAccepted(BaseModel):
     job_id: str
@@ -37,7 +42,7 @@ class ImageItem(BaseModel):
     
 class JobStatus(BaseModel):
     status: Literal["queued", "running", "completed", "failed", "rejected"]
-    images: List[ImageItem] = []
+    images: List[ImageItem] = Field(default_factory=list)
     audit: Dict[str, str] | None = None
     error: Dict[str, str] | None = None
     
@@ -46,5 +51,5 @@ class ImageModelInfo(BaseModel):
     family: str
     min_vram_gb: float | None = None
     resolution: str | None = None
-    tag: List[str] = []
+    tag: List[str] = Field(default_factory=list)
     
