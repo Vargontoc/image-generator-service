@@ -6,21 +6,22 @@ import random
 from fastapi.staticfiles import StaticFiles
 
 from app.engines.diffuser_engine import DiffusersEngine
+from app.engines.multi_model_engine import MultiModelEngine
 
 from .models import GenerateRequest, HealthStatus, ImageItem, ImageModelInfo, JobStatus
 from .storage import new_image_id, save_placeholder, url_for, path_for
-from .config import IMAGES_DIR
+from .config import IMAGES_DIR, DEFAULT_MODEL, ALLOWED_MODELS
 
 app = FastAPI(title="Image Generation Service", version="0.1.0")
 # Static files: align mount path with url_for() helper returning /files/<id>.png
 app.mount("/files", StaticFiles(directory=IMAGES_DIR), name="files")
-_ENGINE: DiffusersEngine | None = None  # lazy singleton
+_MULTI_ENGINE: MultiModelEngine | None = None
 
-def get_engine() -> DiffusersEngine:
-    global _ENGINE
-    if _ENGINE is None:
-        _ENGINE = DiffusersEngine("stabilityai/sdxl-turbo")
-    return _ENGINE
+def get_engine(model_id: str | None = None) -> DiffusersEngine:
+    global _MULTI_ENGINE
+    if _MULTI_ENGINE is None:
+        _MULTI_ENGINE = MultiModelEngine()
+    return _MULTI_ENGINE.get(model_id)
 
 
 @app.get("/health", response_model=HealthStatus)
@@ -29,12 +30,11 @@ def health():
 
 @app.get("/v1/models")
 def image_models():
-    return {
-        "default_model" : "stabilityai/sdxl-turbo",
-        "models": [
-            ImageModelInfo(name="stabilityai/sdxl-turbo", family="sdxl", min_vram_gb=8.0, resolution="best@1024", tag=["fast", "mvp"]).model_dump()
-        ]
-    }
+    models = [
+        ImageModelInfo(name=m, family="sdxl", min_vram_gb=8.0, resolution="best@1024", tag=["multi-model"]).model_dump()
+        for m in ALLOWED_MODELS
+    ]
+    return {"default_model": DEFAULT_MODEL, "models": models}
 
 @app.post("/v1/generate", response_model=JobStatus)
 def generate(req: GenerateRequest):
@@ -58,7 +58,11 @@ def generate(req: GenerateRequest):
     logger = logging.getLogger("uvicorn.error")
     start = time.time()
     try:
-        image = get_engine().generate_image(
+        # Selección de modelo
+        selected_model = req.params.model or DEFAULT_MODEL
+        if selected_model not in ALLOWED_MODELS:
+            raise HTTPException(400, f"Model '{selected_model}' not allowed")
+        image = get_engine(selected_model).generate_image(
             prompt=req.prompt.strip(),
             negative=negative,
             width=req.params.width,
@@ -81,16 +85,18 @@ def generate(req: GenerateRequest):
             "steps": req.params.steps,
             "cfg": req.params.cfg,
             "seed": seed,
+            "model": selected_model,
             "duration_sec": duration,
             "status": "completed"
         })
-        return JobStatus(status="completed", images=[item], audit={"policy":"standard", "duration_sec": str(duration)})
+        return JobStatus(status="completed", images=[item], audit={"policy":"standard", "model": selected_model, "duration_sec": str(duration)})
     except Exception as e:  # broad catch to return structured error
         duration = round(time.time() - start, 3)
         logger.error("generation.failed", extra={
             "error": str(e),
             "duration_sec": duration,
-            "seed": seed
+            "seed": seed,
+            "model": req.params.model or DEFAULT_MODEL
         })
         return JobStatus(status="failed", images=[], error={"message": str(e)})
 

@@ -4,6 +4,7 @@ pydantic==2.8.2
 python-multipart==0.0.9
 Pillow==10.4.0
 pyjwt==2.9.0
+httpx==0.27.0
 
 # PyTorch stack: pin to verified versions (CPU by default). For CUDA, override via index-url.
 torch==2.2.2
@@ -16,7 +17,7 @@ accelerate==0.34.2
 safetensors==0.4.4
 
 # Optional dev tools (install manually if needed):
-# pytest==8.2.0
+pytest==8.2.0
 # ruff==0.6.2
 
 # For CUDA 12.x installation example:

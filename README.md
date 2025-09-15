@@ -1,10 +1,10 @@
 # Image Generation Service (SDXL-Turbo)
 
-Servicio FastAPI para generar imágenes usando el modelo `stabilityai/sdxl-turbo` (vía diffusers), con carga perezosa del pipeline, validaciones de parámetros y logging estructurado.
+Servicio FastAPI para generar imágenes usando el modelo `stabilityai/sdxl-turbo` (vía diffusers), con carga perezosa del pipeline, validaciones de parámetros, soporte multi-model y logging estructurado.
 
 ## Características
 - Generación síncrona (endpoint `/v1/generate` devuelve el resultado directamente)
-- Modelo cargado de forma lazy al primer uso
+- Modelo(s) cargado(s) de forma lazy al primer uso (multi-model con caché LRU configurable)
 - Validaciones: prompt no vacío, dimensiones <= 2048 y múltiplos de 8, límites de steps/CFG
 - Seed reproducible (se genera uno si no se envía)
 - Negative prompt seguro por defecto
@@ -37,7 +37,17 @@ pip install torch --index-url https://download.pytorch.org/whl/cu121
 | `APP_PORT` | Puerto HTTP | 8001 |
 | `DATA_DIR` | Directorio raíz de datos | ./data |
 | `BASE_URL` | Prefijo absoluto para URLs de imágenes (sin slash final) | (vacío) |
-| `MODEL_ID` | Futuro: permitir override del modelo | stabilityai/sdxl-turbo |
+| `DEFAULT_MODEL` | Modelo por defecto al generar si no se especifica | stabilityai/sdxl-turbo |
+| `ALLOWED_MODELS` | Lista separada por comas de modelos permitidos | (igual a DEFAULT_MODEL) |
+| `MAX_MODELS_CACHE` | Cuántos modelos mantener en memoria (LRU) | 2 |
+| `MODEL_ID` | (Obsoleto) Anterior bandera única de modelo | stabilityai/sdxl-turbo |
+
+Ejemplo para habilitar dos modelos y caché de 2:
+```bash
+export DEFAULT_MODEL="stabilityai/sdxl-turbo"
+export ALLOWED_MODELS="stabilityai/sdxl-turbo,stabilityai/sdxl-lightning"
+export MAX_MODELS_CACHE=2
+```
 
 ## Ejecución
 ```bash
@@ -49,17 +59,17 @@ uvicorn app.main:app --reload --port 8001
 Estado simple del servicio.
 
 ### GET /v1/models
-Lista de modelos soportados (estático por ahora).
+Lista dinámica de modelos soportados definida por `ALLOWED_MODELS`. Devuelve también el `default_model`.
 
 ### POST /v1/generate
-Genera una imagen.
+Genera una imagen. Se puede especificar un modelo alternativo (si está permitido) dentro de `params.model`.
 
 Ejemplo JSON:
 ```json
 {
   "prompt": "studio photo of a corgi astronaut on the moon",
   "negative_prompt": null,
-  "params": {"width": 1024, "height": 1024, "steps": 25, "cfg": 7.5}
+  "params": {"width": 1024, "height": 1024, "steps": 25, "cfg": 7.5, "model": "stabilityai/sdxl-lightning"}
 }
 ```
 
@@ -78,11 +88,18 @@ Respuesta (ejemplo):
 ### GET /v1/jobs/{job_id}
 Obsoleto: devuelve 410 porque la generación ahora es síncrona.
 
-## Ejemplo curl
+## Ejemplos curl
 ```bash
 curl -X POST http://localhost:8001/v1/generate \
   -H 'Content-Type: application/json' \
   -d '{"prompt":"hyperrealistic portrait of a cyberpunk samurai","params":{"width":512,"height":512,"steps":15,"cfg":6.5}}'
+```
+
+Con selección explícita de modelo:
+```bash
+curl -X POST http://localhost:8001/v1/generate \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"dramatic cinematic landscape","params":{"width":512,"height":512,"steps":10,"cfg":5.5,"model":"stabilityai/sdxl-lightning"}}'
 ```
 
 
