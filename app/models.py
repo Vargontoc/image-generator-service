@@ -13,8 +13,7 @@ class GenerateParams(BaseModel):
     model: Optional[str] = None
     
 class SafetyConfig(BaseModel):
-    # Correct typo: allow_ature_implicit -> allow_mature_implicit
-    allow_mature_implicit: bool = Field(False, alias="allow_ature_implicit")
+    allow_mature_implicit: bool = Field(False, alias="allow_mature_implicit")
 
 class Metadata(BaseModel):
     project_id: Optional[str] = None
