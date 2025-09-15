@@ -1,4 +1,8 @@
 import os
+from dotenv import load_dotenv
+
+# Cargar variables desde un archivo .env si existe (no falla si no está)
+load_dotenv()
 
 APP_PORT = int(os.getenv("APP_PORT", "8001"))
 DATA_DIR = os.getenv("DATA_DIR", "./data")

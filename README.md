@@ -24,6 +24,15 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
+Puedes crear un archivo `.env` (no se versiona) para definir variables de entorno locales; se carga automáticamente gracias a `python-dotenv`.
+
+Ejemplo `.env`:
+```
+APP_PORT=8001
+REQUIRE_API_KEY=1
+API_KEY=devtoken
+```
+
 Para instalación específica de PyTorch (CPU / CUDA) consultar: https://pytorch.org/get-started/locally/
 
 Ejemplo (CUDA 12.x):
@@ -56,6 +65,11 @@ export MAX_MODELS_CACHE=2
 ## Ejecución
 ```bash
 uvicorn app.main:app --reload --port 8001
+```
+
+Si defines `APP_PORT` en `.env` puedes omitir `--port` y usar un script externo que lo lea; FastAPI/uvicorn no lo recoge automáticamente, así que mantener la bandera explícita sigue siendo recomendable o lanzar con:
+```bash
+python -m uvicorn app.main:app --port $APP_PORT --reload
 ```
 
 ## Endpoints

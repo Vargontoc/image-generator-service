@@ -6,6 +6,7 @@ Pillow==10.4.0
 pyjwt==2.9.0
 httpx==0.27.0
 prometheus-client==0.20.0
+python-dotenv==1.0.1
 
 # PyTorch stack: pin to verified versions (CPU by default). For CUDA, override via index-url.
 torch==2.2.2
