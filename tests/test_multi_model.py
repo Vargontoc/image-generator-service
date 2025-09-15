@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 from PIL import Image
 from app.main import app, get_engine
+import os
 from app.config import DEFAULT_MODEL
 
 # We simulate two models via inspecting requested modelId passed through dependency override.
@@ -22,6 +23,7 @@ def override_engine(model_id: str | None = None):
         _created[mid] = DummyEngine(mid)
     return _created[mid]
 
+os.environ["REQUIRE_API_KEY"] = "0"
 app.dependency_overrides[get_engine] = override_engine
 client = TestClient(app)
 

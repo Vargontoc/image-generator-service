@@ -1,6 +1,7 @@
 import os
 import io
 from PIL import Image
+import os
 from fastapi.testclient import TestClient
 from app.main import app, get_engine
 
@@ -12,6 +13,7 @@ class DummyEngine:
 def override_engine():
     return DummyEngine()
 
+os.environ["REQUIRE_API_KEY"] = "0"
 app.dependency_overrides[get_engine] = override_engine
 client = TestClient(app)
 

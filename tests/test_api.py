@@ -1,6 +1,10 @@
 from fastapi.testclient import TestClient
 from PIL import Image
 from app.main import app, get_engine
+import os
+
+# Ensure auth disabled for these tests
+os.environ["REQUIRE_API_KEY"] = "0"
 
 class DummyEngine:
     def generate_image(self, prompt, negative, width, height, steps, cfg, seed):

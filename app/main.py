@@ -1,6 +1,7 @@
 from typing import Dict
 from fastapi import FastAPI, HTTPException, Depends
 import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 import logging
 import random
 from fastapi.staticfiles import StaticFiles
@@ -10,7 +11,7 @@ from app.engines.multi_model_engine import MultiModelEngine
 
 from .models import GenerateRequest, HealthStatus, ImageItem, ImageModelInfo, JobStatus
 from .storage import new_image_id, save_placeholder, url_for, path_for
-from .config import IMAGES_DIR, DEFAULT_MODEL, ALLOWED_MODELS
+from .config import IMAGES_DIR, DEFAULT_MODEL, ALLOWED_MODELS, generation_timeout_seconds
 from .auth import AuthDependency
 
 app = FastAPI(title="Image Generation Service", version="0.1.0")
@@ -63,14 +64,31 @@ def generate(req: GenerateRequest, _: None = AuthDependency):
         selected_model = req.params.model or DEFAULT_MODEL
         if selected_model not in ALLOWED_MODELS:
             raise HTTPException(400, f"Model '{selected_model}' not allowed")
-        image = get_engine(selected_model).generate_image(
-            prompt=req.prompt.strip(),
-            negative=negative,
-            width=req.params.width,
-            height=req.params.height,
-            steps=req.params.steps,
-            cfg=req.params.cfg,
-            seed=seed)
+        def _do_generate():
+            return get_engine(selected_model).generate_image(
+                prompt=req.prompt.strip(),
+                negative=negative,
+                width=req.params.width,
+                height=req.params.height,
+                steps=req.params.steps,
+                cfg=req.params.cfg,
+                seed=seed)
+
+        timeout_sec = generation_timeout_seconds()
+        if timeout_sec and timeout_sec > 0:
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(_do_generate)
+                try:
+                    image = future.result(timeout=timeout_sec)
+                except TimeoutError:
+                    logger.error("generation.timeout", extra={
+                        "model": selected_model,
+                        "seed": seed,
+                        "timeout_sec": timeout_sec
+                    })
+                    raise HTTPException(status_code=504, detail="Generation timeout exceeded")
+        else:
+            image = _do_generate()
 
         # Guardar imagen
         image_id = new_image_id()
