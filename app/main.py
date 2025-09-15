@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from app.engines.diffuser_engine import DiffusersEngine
 
 from .models import GenerateRequest, HealthStatus, ImageItem, ImageModelInfo, JobStatus
-from .storage import new_image_id, save_placeholder, url_for
+from .storage import new_image_id, save_placeholder, url_for, path_for
 from .config import IMAGES_DIR
 
 app = FastAPI(title="Image Generation Service", version="0.1.0")
@@ -69,8 +69,8 @@ def generate(req: GenerateRequest):
 
         # Guardar imagen
         image_id = new_image_id()
-        path = f"{IMAGES_DIR}/{image_id}.png"
-        image.save(path, format="PNG")
+        img_path = path_for(image_id)
+        image.save(img_path, format="PNG")
 
         item = ImageItem(image_id=image_id, url=url_for(image_id), seed=seed)
         duration = round(time.time() - start, 3)
