@@ -79,6 +79,26 @@ Estado simple del servicio.
 ### GET /v1/models
 Lista dinámica de modelos soportados definida por `ALLOWED_MODELS`. Devuelve también el `default_model`.
 
+### POST /v1/models/purge (protegido por API Key)
+Permite vaciar el caché de pipelines Diffusers.
+
+Usos:
+```
+# Purga total
+curl -X POST http://localhost:8001/v1/models/purge \
+  -H 'X-API-Key: <clave>'
+
+# Purga específica
+curl -X POST http://localhost:8001/v1/models/purge \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: <clave>' \
+  -d '{"model_id":"stabilityai/sdxl-turbo"}'
+```
+Respuesta ejemplo:
+```json
+{"model_id":"stabilityai/sdxl-turbo","removed":1,"remaining":0}
+```
+
 ### POST /v1/generate
 Genera una imagen. Se puede especificar un modelo alternativo (si está permitido) dentro de `params.model`.
 

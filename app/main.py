@@ -1,5 +1,6 @@
 from typing import Dict
 from fastapi import FastAPI, HTTPException, Depends
+from fastapi import Body
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 import logging
@@ -137,3 +138,27 @@ def metrics():
     body = prometheus_exposition_body()
     from fastapi.responses import Response
     return Response(content=body, media_type=prometheus_content_type())
+
+
+@app.post("/v1/models/purge")
+def purge_models(payload: Dict[str, str] | None = Body(default=None), _: None = AuthDependency):
+    """Purga el caché completo de modelos o un modelo específico.
+    Body opcional: {"model_id": "nombre"}
+    """
+    global _MULTI_ENGINE
+    if _MULTI_ENGINE is None:
+        # Nada cargado aún; devolver estructura consistente
+        mid = None
+        if payload and isinstance(payload, dict):
+            mid = payload.get("model_id")
+        return {"model_id": mid, "removed": 0, "remaining": 0, "note": "cache empty"}
+    model_id = None
+    if payload and isinstance(payload, dict):
+        model_id = payload.get("model_id")
+    try:
+        result = _MULTI_ENGINE.purge(model_id=model_id)
+        # Incluir siempre la clave model_id (puede ser None)
+        result = {"model_id": model_id, **result}
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

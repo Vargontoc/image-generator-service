@@ -1,5 +1,5 @@
 from typing import Dict, List, Literal, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 class HealthStatus(BaseModel):
     status: str = "ok"
@@ -27,9 +27,8 @@ class GenerateRequest(BaseModel):
     safety: SafetyConfig = SafetyConfig()
     # Correct typo: metada -> metadata (keep alias for backward compatibility)
     metadata: Metadata = Field(default_factory=Metadata, alias="metada")
-
-    class Config:
-        populate_by_name = True
+    # Usar ConfigDict (Pydantic v2) para evitar deprecation warning
+    model_config = ConfigDict(populate_by_name=True)
     
 class JobAccepted(BaseModel):
     job_id: str

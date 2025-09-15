@@ -41,3 +41,20 @@ class MultiModelEngine:
 
     def list_models(self) -> Dict[str, Dict]:
         return {m: {"loaded": m in self._cache} for m in ALLOWED_MODELS}
+
+    def purge(self, model_id: str | None = None) -> Dict[str, int]:
+        """Purga el caché completo o un modelo específico.
+        Devuelve métricas simples: {'removed': n, 'remaining': k}
+        """
+        removed = 0
+        if model_id:
+            if model_id in self._cache:
+                try:
+                    self._cache.pop(model_id)
+                    removed = 1
+                except KeyError:
+                    pass
+        else:
+            removed = len(self._cache)
+            self._cache.clear()
+        return {"removed": removed, "remaining": len(self._cache)}
