@@ -1,5 +1,5 @@
 from typing import Dict
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 import time
 import logging
 import random
@@ -11,6 +11,7 @@ from app.engines.multi_model_engine import MultiModelEngine
 from .models import GenerateRequest, HealthStatus, ImageItem, ImageModelInfo, JobStatus
 from .storage import new_image_id, save_placeholder, url_for, path_for
 from .config import IMAGES_DIR, DEFAULT_MODEL, ALLOWED_MODELS
+from .auth import AuthDependency
 
 app = FastAPI(title="Image Generation Service", version="0.1.0")
 # Static files: align mount path with url_for() helper returning /files/<id>.png
@@ -29,7 +30,7 @@ def health():
     return HealthStatus()
 
 @app.get("/v1/models")
-def image_models():
+def image_models(_: None = AuthDependency):
     models = [
         ImageModelInfo(name=m, family="sdxl", min_vram_gb=8.0, resolution="best@1024", tag=["multi-model"]).model_dump()
         for m in ALLOWED_MODELS
@@ -37,7 +38,7 @@ def image_models():
     return {"default_model": DEFAULT_MODEL, "models": models}
 
 @app.post("/v1/generate", response_model=JobStatus)
-def generate(req: GenerateRequest):
+def generate(req: GenerateRequest, _: None = AuthDependency):
     # Validaciones básicas
     if not req.prompt or not req.prompt.strip():
         raise HTTPException(400, "Prompt cannot be empty")
@@ -90,7 +91,10 @@ def generate(req: GenerateRequest):
             "status": "completed"
         })
         return JobStatus(status="completed", images=[item], audit={"policy":"standard", "model": selected_model, "duration_sec": str(duration)})
-    except Exception as e:  # broad catch to return structured error
+    except HTTPException:
+        # Re-lanzar para que FastAPI maneje correctamente el código de estado
+        raise
+    except Exception as e:  # broad catch to return structured error (500)
         duration = round(time.time() - start, 3)
         logger.error("generation.failed", extra={
             "error": str(e),
@@ -98,7 +102,7 @@ def generate(req: GenerateRequest):
             "seed": seed,
             "model": req.params.model or DEFAULT_MODEL
         })
-        return JobStatus(status="failed", images=[], error={"message": str(e)})
+        raise HTTPException(status_code=500, detail="Internal generation error")
 
 @app.get("/v1/jobs/{job_id}")
 def job_status(job_id: str):

@@ -49,8 +49,6 @@ def test_generate_with_explicit_model_allowed():
 def test_generate_with_disallowed_model():
     payload = {"prompt": "a tree", "params": {"width": 64, "height": 64, "steps": 1, "cfg": 1, "model": "not-in-allowed"}}
     r = client.post("/v1/generate", json=payload)
-    # Service returns HTTP 200 with status failed because broad exception catch wraps HTTPException.
-    assert r.status_code == 200
+    assert r.status_code == 400
     body = r.json()
-    assert body["status"] == "failed"
-    assert "not allowed" in body["error"]["message"]
+    assert body["detail"].startswith("Model") and "not allowed" in body["detail"]
