@@ -24,6 +24,8 @@ main_module.get_engine = override_engine
 client = TestClient(app)
 
 def test_generation_timeout():
+    # Re-force timeout in case another test overrode generation_timeout_seconds
+    main_module.generation_timeout_seconds = lambda: 0.3  # type: ignore
     payload = {"prompt": "slow", "params": {"width": 64, "height": 64, "steps": 1, "cfg": 1}}
     r = client.post("/v1/generate", json=payload)
     assert r.status_code == 504, r.text

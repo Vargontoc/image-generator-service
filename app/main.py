@@ -13,6 +13,7 @@ from .models import GenerateRequest, HealthStatus, ImageItem, ImageModelInfo, Jo
 from .storage import new_image_id, save_placeholder, url_for, path_for
 from .config import IMAGES_DIR, DEFAULT_MODEL, ALLOWED_MODELS, generation_timeout_seconds
 from .auth import AuthDependency
+from .metrics import record_generation, prometheus_exposition_body, prometheus_content_type, metrics_enabled
 
 app = FastAPI(title="Image Generation Service", version="0.1.0")
 # Static files: align mount path with url_for() helper returning /files/<id>.png
@@ -108,6 +109,7 @@ def generate(req: GenerateRequest, _: None = AuthDependency):
             "duration_sec": duration,
             "status": "completed"
         })
+        record_generation("completed", selected_model, duration)
         return JobStatus(status="completed", images=[item], audit={"policy":"standard", "model": selected_model, "duration_sec": str(duration)})
     except HTTPException:
         # Re-lanzar para que FastAPI maneje correctamente el código de estado
@@ -120,9 +122,18 @@ def generate(req: GenerateRequest, _: None = AuthDependency):
             "seed": seed,
             "model": req.params.model or DEFAULT_MODEL
         })
+        record_generation("failed", req.params.model or DEFAULT_MODEL, duration)
         raise HTTPException(status_code=500, detail="Internal generation error")
 
 @app.get("/v1/jobs/{job_id}")
 def job_status(job_id: str):
     # Deprecated endpoint: previously used for async jobs
     raise HTTPException(410, detail="Endpoint deprecated: generation is synchronous now")
+
+@app.get("/metrics")
+def metrics():
+    if not metrics_enabled():
+        return ""  # métricas deshabilitadas
+    body = prometheus_exposition_body()
+    from fastapi.responses import Response
+    return Response(content=body, media_type=prometheus_content_type())

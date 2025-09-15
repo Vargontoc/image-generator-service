@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 from PIL import Image
 from app.main import app, get_engine
+import app.main as main_module
 import os
 from app.config import DEFAULT_MODEL
 
@@ -24,6 +25,8 @@ def override_engine(model_id: str | None = None):
     return _created[mid]
 
 os.environ["REQUIRE_API_KEY"] = "0"
+os.environ["GENERATION_TIMEOUT_SECONDS"] = "0"
+main_module.generation_timeout_seconds = lambda: 0  # type: ignore
 app.dependency_overrides[get_engine] = override_engine
 client = TestClient(app)
 

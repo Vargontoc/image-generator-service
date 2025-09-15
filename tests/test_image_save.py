@@ -4,6 +4,7 @@ from PIL import Image
 import os
 from fastapi.testclient import TestClient
 from app.main import app, get_engine
+import app.main as main_module
 
 class DummyEngine:
     def generate_image(self, prompt, negative, width, height, steps, cfg, seed):
@@ -14,6 +15,8 @@ def override_engine():
     return DummyEngine()
 
 os.environ["REQUIRE_API_KEY"] = "0"
+os.environ["GENERATION_TIMEOUT_SECONDS"] = "0"
+main_module.generation_timeout_seconds = lambda: 0  # type: ignore
 app.dependency_overrides[get_engine] = override_engine
 client = TestClient(app)
 

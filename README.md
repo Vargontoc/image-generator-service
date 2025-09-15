@@ -41,6 +41,10 @@ pip install torch --index-url https://download.pytorch.org/whl/cu121
 | `ALLOWED_MODELS` | Lista separada por comas de modelos permitidos | (igual a DEFAULT_MODEL) |
 | `MAX_MODELS_CACHE` | Cuántos modelos mantener en memoria (LRU) | 2 |
 | `MODEL_ID` | (Obsoleto) Anterior bandera única de modelo | stabilityai/sdxl-turbo |
+| `REQUIRE_API_KEY` | Si está en `1/true` exige header `X-API-Key` | 0 |
+| `API_KEY` / `API_KEYS` | Clave única o lista de claves válidas | (vacío) |
+| `GENERATION_TIMEOUT_SECONDS` | Timeout duro de generación (0 = desactivado) | 0 |
+| `METRICS_ENABLED` | Exponer métricas Prometheus en `/metrics` | 0 |
 
 Ejemplo para habilitar dos modelos y caché de 2:
 ```bash
@@ -102,6 +106,29 @@ curl -X POST http://localhost:8001/v1/generate \
   -d '{"prompt":"dramatic cinematic landscape","params":{"width":512,"height":512,"steps":10,"cfg":5.5,"model":"stabilityai/sdxl-lightning"}}'
 ```
 
+### Uso con API Key
+Habilitar y usar:
+```bash
+export REQUIRE_API_KEY=1
+export API_KEY=mysecret
+curl -X POST http://localhost:8001/v1/generate \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: mysecret' \
+  -d '{"prompt":"a product photo","params":{"width":512,"height":512,"steps":8,"cfg":5}}'
+```
+
+### Timeout de Generación
+```bash
+export GENERATION_TIMEOUT_SECONDS=30
+```
+Si el modelo tarda más, responde 504.
+
+### Métricas Prometheus
+```bash
+export METRICS_ENABLED=1
+```
+Luego: `GET /metrics` expone `image_generations_total` y `image_generation_seconds`.
+
 
 ## Tests
 Ejecutar (requiere dependencia `pytest` si no está):
@@ -117,7 +144,7 @@ Los tests mockean el motor de difusión para ser rápidos y deterministas.
 - Warmup inicial opcional.
 
 ## Seguridad y Uso Responsable
-No uses el servicio para generar contenido prohibido. 
+No uses el servicio para generar contenido prohibido. Activa API Key en entornos públicos.
 ## Licencia
 MIT (añadir archivo LICENSE si se requiere).
 

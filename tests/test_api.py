@@ -1,10 +1,13 @@
 from fastapi.testclient import TestClient
 from PIL import Image
 from app.main import app, get_engine
+import app.main as main_module
 import os
 
 # Ensure auth disabled for these tests
 os.environ["REQUIRE_API_KEY"] = "0"
+os.environ["GENERATION_TIMEOUT_SECONDS"] = "0"
+main_module.generation_timeout_seconds = lambda: 0  # type: ignore
 
 class DummyEngine:
     def generate_image(self, prompt, negative, width, height, steps, cfg, seed):
